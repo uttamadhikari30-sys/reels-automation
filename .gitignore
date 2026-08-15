@@ -1,0 +1,7 @@
+reel.mp3
+reel.mp4
+cap.txt
+title.txt
+out_*.json
+err_*.txt
+__pycache__/

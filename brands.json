@@ -1,0 +1,56 @@
+{
+  "factmitra": {
+    "name": "FactMitra",
+    "tagline": "रोज़ एक नया रोचक तथ्य",
+    "cta_word": "FactMitra",
+    "kind": "facts",
+    "model": "claude-sonnet-5",
+    "color_primary": "0x1E63C8",
+    "color_accent": "0xE86A10",
+    "voice_default": "hi-IN-MadhurNeural",
+    "fb_page_id": "1284084631445777",
+    "slots": {
+      "10:00": {"category": "Space & Science Facts", "voice": "hi-IN-MadhurNeural"},
+      "12:00": {"category": "India & History Facts", "voice": "hi-IN-SwaraNeural"},
+      "14:00": {"category": "Nature & Animal Facts", "voice": "hi-IN-MadhurNeural"},
+      "17:00": {"category": "Technology & Space Facts", "voice": "hi-IN-SwaraNeural"},
+      "19:00": {"category": "World & Culture Facts", "voice": "hi-IN-MadhurNeural"}
+    }
+  },
+  "arogyamantra": {
+    "name": "ArogyaMantra",
+    "tagline": "सेहत का असली मंत्र",
+    "cta_word": "ArogyaMantra",
+    "kind": "health",
+    "model": "claude-haiku-4-5-20251001",
+    "color_primary": "0x2E9E5B",
+    "color_accent": "0xF2B705",
+    "voice_default": "hi-IN-SwaraNeural",
+    "fb_page_id": "1142627388943587",
+    "disclaimer": "यह जानकारी सामान्य ज्ञान के लिए है, डॉक्टर की सलाह का विकल्प नहीं।",
+    "slots": {
+      "11:00": {"category": "Gharelu Nuskhe", "voice": "hi-IN-SwaraNeural", "presenter": "dadi"},
+      "13:00": {"category": "Ayurveda", "voice": "hi-IN-MadhurNeural"},
+      "16:00": {"category": "Yoga", "voice": "hi-IN-SwaraNeural"},
+      "20:00": {"category": "Diet & Fitness", "voice": "hi-IN-MadhurNeural", "presenter": "diet"}
+    }
+  },
+  "sparkmind": {
+    "name": "SparkMind",
+    "tagline": "हर दिन एक नई सोच",
+    "cta_word": "SparkMind",
+    "kind": "motivation",
+    "model": "claude-haiku-4-5-20251001",
+    "color_primary": "0xE86A10",
+    "color_accent": "0xFFC107",
+    "voice_default": "hi-IN-MadhurNeural",
+    "fb_page_id": "893750030487610",
+    "slots": {
+      "06:00": {"category": "God Motivation", "voice": "hi-IN-MadhurNeural"},
+      "09:00": {"category": "Success Mindset", "voice": "hi-IN-SwaraNeural"},
+      "12:00": {"category": "Business Motivation", "voice": "hi-IN-MadhurNeural"},
+      "15:00": {"category": "Self Improvement", "voice": "hi-IN-SwaraNeural"},
+      "18:00": {"category": "Life Lessons", "voice": "hi-IN-MadhurNeural"}
+    }
+  }
+}
