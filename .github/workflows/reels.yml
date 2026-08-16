@@ -52,6 +52,7 @@ jobs:
       - name: Install ffmpeg + font + deps
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          mkdir -p assets state
           curl -sL -o assets/NotoSansDevanagari.ttf \
             https://github.com/google/fonts/raw/main/ofl/mukta/Mukta-Regular.ttf
           pip install -r requirements.txt
