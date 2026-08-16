@@ -8,7 +8,8 @@ ROOT = pathlib.Path(__file__).resolve().parent
 
 def voiceover(text, voice, out):
     # edge-tts: free, natural Indian Hindi voices
-    subprocess.run(["edge-tts", "--voice", voice, "--rate", "-4%",
+    # NOTE: use --rate=-4% (equals form) — "--rate -4%" makes argparse treat -4% as a flag
+    subprocess.run(["edge-tts", "--voice", voice, "--rate=-4%",
                     "--text", text, "--write-media", str(out)], check=True)
     return out
 
