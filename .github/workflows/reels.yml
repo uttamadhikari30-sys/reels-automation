@@ -95,6 +95,14 @@ jobs:
           if [ "${{ steps.pick.outputs.no_post }}" = "true" ]; then FLAG="--no-post"; fi
           python pipeline.py --brand "${{ steps.pick.outputs.brand }}" --slot "${{ steps.pick.outputs.slot }}" $FLAG
 
+      - name: Upload rendered reel (for preview)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-${{ steps.pick.outputs.brand }}-${{ steps.pick.outputs.slot }}
+          path: reel.mp4
+          if-no-files-found: ignore
+
       - name: Save never-repeat state
         if: ${{ steps.pick.outputs.no_post != 'true' }}
         run: |
