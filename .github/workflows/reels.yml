@@ -1,0 +1,105 @@
+name: Reels Auto-Post
+
+on:
+  workflow_dispatch:
+    inputs:
+      brand:
+        description: "brand (factmitra / arogyamantra / sparkmind)"
+        required: true
+        default: "arogyamantra"
+      slot:
+        description: "slot HH:MM (e.g. 11:00)"
+        required: true
+        default: "11:00"
+      no_post:
+        description: "render only (true/false)"
+        required: false
+        default: "false"
+  schedule:
+    # times are UTC. IST = UTC + 5:30
+    - cron: "30 0 * * *"   # sparkmind 06:00
+    - cron: "30 3 * * *"   # sparkmind 09:00
+    - cron: "30 4 * * *"   # factmitra 10:00
+    - cron: "30 5 * * *"   # arogyamantra 11:00
+    - cron: "30 6 * * *"   # factmitra 12:00
+    - cron: "33 6 * * *"   # sparkmind 12:00
+    - cron: "30 7 * * *"   # arogyamantra 13:00
+    - cron: "30 8 * * *"   # factmitra 14:00
+    - cron: "30 9 * * *"   # sparkmind 15:00
+    - cron: "30 10 * * *"  # arogyamantra 16:00
+    - cron: "30 11 * * *"  # factmitra 17:00
+    - cron: "30 12 * * *"  # sparkmind 18:00
+    - cron: "30 13 * * *"  # factmitra 19:00
+    - cron: "30 14 * * *"  # arogyamantra 20:00
+
+permissions:
+  contents: write   # to commit never-repeat state back
+
+concurrency:
+  group: reels
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ffmpeg + font + deps
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          curl -sL -o assets/NotoSansDevanagari.ttf \
+            https://github.com/google/fonts/raw/main/ofl/mukta/Mukta-Regular.ttf
+          pip install -r requirements.txt
+
+      - name: Pick brand + slot
+        id: pick
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          # workflow_dispatch inputs take priority; else map the cron that fired
+          b = os.environ.get("IN_BRAND"); s = os.environ.get("IN_SLOT")
+          npost = os.environ.get("IN_NOPOST","false")
+          cron = os.environ.get("CRON","")
+          M = {
+            "30 0 * * *": ("sparkmind","06:00"),   "30 3 * * *": ("sparkmind","09:00"),
+            "30 4 * * *": ("factmitra","10:00"),   "30 5 * * *": ("arogyamantra","11:00"),
+            "30 6 * * *": ("factmitra","12:00"),   "33 6 * * *": ("sparkmind","12:00"),
+            "30 7 * * *": ("arogyamantra","13:00"),"30 8 * * *": ("factmitra","14:00"),
+            "30 9 * * *": ("sparkmind","15:00"),   "30 10 * * *": ("arogyamantra","16:00"),
+            "30 11 * * *": ("factmitra","17:00"),  "30 12 * * *": ("sparkmind","18:00"),
+            "30 13 * * *": ("factmitra","19:00"),  "30 14 * * *": ("arogyamantra","20:00"),
+          }
+          if not (b and s) and cron in M:
+            b, s = M[cron]
+          print(f"brand={b}")
+          print(f"slot={s}")
+          print(f"no_post={npost}")
+          PY
+        env:
+          IN_BRAND: ${{ github.event.inputs.brand }}
+          IN_SLOT: ${{ github.event.inputs.slot }}
+          IN_NOPOST: ${{ github.event.inputs.no_post }}
+          CRON: ${{ github.event.schedule }}
+
+      - name: Generate + render + post
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FB_TOKEN: ${{ secrets.FB_TOKEN }}
+        run: |
+          FLAG=""
+          if [ "${{ steps.pick.outputs.no_post }}" = "true" ]; then FLAG="--no-post"; fi
+          python pipeline.py --brand "${{ steps.pick.outputs.brand }}" --slot "${{ steps.pick.outputs.slot }}" $FLAG
+
+      - name: Save never-repeat state
+        if: ${{ steps.pick.outputs.no_post != 'true' }}
+        run: |
+          git config user.name "reels-bot"
+          git config user.email "reels-bot@users.noreply.github.com"
+          git add state/ || true
+          git commit -m "state: ${{ steps.pick.outputs.brand }} ${{ steps.pick.outputs.slot }}" || echo "no state change"
+          git push || echo "nothing to push"
