@@ -23,22 +23,42 @@ def build_caption(bcfg, data):
     parts.append(tags)
     return "\n".join(p for p in parts if p is not None).strip()
 
+def get_page_token(page_id, token):
+    """Exchange the system-user token for the PAGE access token (needed to post reels)."""
+    try:
+        r = requests.get(f"{GV}/{page_id}", params={"fields": "access_token", "access_token": token}, timeout=60).json()
+        return r.get("access_token")
+    except Exception:
+        return None
+
 def upload_public(path):
-    """Upload to catbox.moe -> returns a public URL for Instagram to pull."""
-    with open(path, "rb") as f:
-        r = requests.post("https://catbox.moe/user/api.php",
-                          data={"reqtype": "fileupload"},
-                          files={"fileToUpload": f}, timeout=300)
-    r.raise_for_status()
-    url = r.text.strip()
-    if not url.startswith("http"):
-        raise RuntimeError(f"catbox upload failed: {url[:120]}")
-    return url
+    """Upload to a public host so Instagram can pull the video by URL. Tries a few hosts."""
+    # 1) tmpfiles.org
+    try:
+        with open(path, "rb") as f:
+            r = requests.post("https://tmpfiles.org/api/v1/upload", files={"file": f}, timeout=300).json()
+        u = r.get("data", {}).get("url", "")
+        if u:  # tmpfiles returns a viewer URL; convert to direct-download
+            return u.replace("tmpfiles.org/", "tmpfiles.org/dl/")
+    except Exception as e:
+        print("[upload] tmpfiles failed:", str(e)[:80])
+    # 2) 0x0.st
+    try:
+        with open(path, "rb") as f:
+            r = requests.post("https://0x0.st", files={"file": f},
+                              headers={"User-Agent": "reels-bot/1.0"}, timeout=300)
+        if r.ok and r.text.strip().startswith("http"):
+            return r.text.strip()
+    except Exception as e:
+        print("[upload] 0x0.st failed:", str(e)[:80])
+    raise RuntimeError("all public upload hosts failed")
 
 def post_facebook(page_id, token, path, caption):
     size = os.path.getsize(path)
     s = requests.post(f"{GV}/{page_id}/video_reels",
                       data={"upload_phase": "start", "access_token": token}, timeout=60).json()
+    if "video_id" not in s:
+        raise RuntimeError(f"FB start failed: {s}")
     vid, up = s["video_id"], s["upload_url"]
     with open(path, "rb") as f:
         requests.post(up, headers={"Authorization": f"OAuth {token}",
@@ -77,9 +97,11 @@ def get_ig_id(page_id, token):
         return None
 
 def publish_all(brand, bcfg, path, data):
-    token = os.environ["FB_TOKEN"]           # one system-user token works for all 3 pages
+    sys_token = os.environ["FB_TOKEN"]       # one system-user token works for all 3 pages
     page_id = bcfg["fb_page_id"]
-    ig_id = os.environ.get(f"{bcfg.get('secret_prefix','')}_IG_USER_ID") or get_ig_id(page_id, token)
+    token = get_page_token(page_id, sys_token) or sys_token   # page token needed to post reels
+    print("[auth] page token", "derived" if token != sys_token else "FELL BACK to system token")
+    ig_id = get_ig_id(page_id, token)
     caption = build_caption(bcfg, data)
     out = {}
     try:
