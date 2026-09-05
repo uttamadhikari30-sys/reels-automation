@@ -55,6 +55,10 @@ jobs:
           mkdir -p assets state
           curl -sL -o assets/NotoSansDevanagari.ttf \
             https://github.com/google/fonts/raw/main/ofl/mukta/Mukta-Regular.ttf
+          # register Devanagari font with fontconfig so libass shapes Hindi correctly
+          sudo mkdir -p /usr/share/fonts/truetype/mukta
+          sudo cp assets/NotoSansDevanagari.ttf /usr/share/fonts/truetype/mukta/Mukta-Regular.ttf
+          sudo fc-cache -f >/dev/null 2>&1 || true
           pip install -r requirements.txt
 
       - name: Pick brand + slot
