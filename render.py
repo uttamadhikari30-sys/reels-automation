@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Render a 1080x1920 vertical reel with ffmpeg. Hindi text is drawn via libass
-(ASS subtitles) — NOT drawtext — because libass shapes Devanagari correctly
-(matras/conjuncts). Background = brand gradient, or a presenter still (dadi) with a
-slow zoom. Mixes the voiceover (+ optional music)."""
-import subprocess, pathlib, textwrap
+"""Render a 1080x1920 vertical reel with ffmpeg.
+- Hindi text via libass (ASS subtitles) so Devanagari shapes correctly.
+- Background: presenter still (dadi, Ken Burns) if assets/<presenter>.png exists;
+  else real Pexels footage (if PEXELS_API_KEY set); else a brand gradient.
+- Mixes voiceover (+ optional assets/music.mp3). Output 1080p, crf 20."""
+import subprocess, pathlib, textwrap, os, json, random, urllib.request, urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parent
-FONT_FAMILY = "Mukta"   # bundled Devanagari font (assets/); libass shapes it right
+FONT_FAMILY = "Mukta"
 
 def _dur(mp3):
     try:
@@ -26,12 +27,10 @@ def _wrap(script, width=22):
         para = para.strip()
         if para:
             out += textwrap.wrap(para, width=width) or [para]
-    return "\\N".join(out)   # \N = hard line break in ASS
+    return "\\N".join(out)
 
 def _build_ass(brand_name, script, dur):
-    end = _t(dur)
-    body = _wrap(script)
-    title = brand_name.replace("\n", " ")
+    end = _t(dur); body = _wrap(script); title = brand_name.replace("\n", " ")
     ass = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -49,10 +48,52 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:00.00,{end},Title,,0,0,0,,{title}
 Dialogue: 0,0:00:00.00,{end},Body,,0,0,0,,{body}
 """
-    p = ROOT / "sub.ass"
-    p.write_text(ass, encoding="utf-8")
-    return p
+    (ROOT / "sub.ass").write_text(ass, encoding="utf-8")
 
+# ---- background sources ----------------------------------------------------
+PEXELS_Q = {
+    "Gharelu Nuskhe": "indian spices kitchen herbs",
+    "Ayurveda": "ayurveda herbs herbal",
+    "Yoga": "yoga meditation calm",
+    "Diet & Fitness": "healthy food fitness",
+    "Space & Science Facts": "galaxy space stars",
+    "India & History Facts": "india heritage monument",
+    "Nature & Animal Facts": "wildlife nature",
+    "Technology & Space Facts": "technology futuristic",
+    "World & Culture Facts": "world travel culture",
+    "God Motivation": "sunrise temple sky",
+    "Success Mindset": "mountain sunrise clouds",
+    "Business Motivation": "city skyline timelapse",
+    "Self Improvement": "calm nature forest",
+    "Life Lessons": "ocean sunset horizon",
+}
+
+def fetch_pexels_bg(category, out):
+    key = os.environ.get("PEXELS_API_KEY")
+    if not key:
+        return None
+    q = PEXELS_Q.get(category, category)
+    try:
+        url = ("https://api.pexels.com/videos/search?orientation=portrait&size=medium&per_page=15&query="
+               + urllib.parse.quote(q))
+        req = urllib.request.Request(url, headers={"Authorization": key})
+        data = json.loads(urllib.request.urlopen(req, timeout=60).read())
+        vids = data.get("videos") or []
+        if not vids:
+            return None
+        v = random.choice(vids[:10])
+        files = [f for f in v.get("video_files", []) if (f.get("height") or 0) >= 1000
+                 and (f.get("width") or 0) < (f.get("height") or 1)]  # portrait, decent res
+        files = files or v.get("video_files", [])
+        files.sort(key=lambda f: abs((f.get("height") or 0) - 1920))
+        link = files[0]["link"]
+        urllib.request.urlretrieve(link, out)
+        return out
+    except Exception as e:
+        print("[pexels] failed:", str(e)[:100])
+        return None
+
+# ---- main render -----------------------------------------------------------
 def render(brand_cfg, data, mp3, out):
     dur = _dur(mp3); frames = int(dur * 25) + 25
     prim = brand_cfg["color_primary"]
@@ -60,13 +101,21 @@ def render(brand_cfg, data, mp3, out):
     pres_img = ROOT / "assets" / f"{presenter}.png" if presenter else None
     music = ROOT / "assets" / "music.mp3"
     _build_ass(brand_cfg["name"], data["script"], dur)
-
     subs = "subtitles=filename=sub.ass:fontsdir=assets"
+
+    bg_video = None
+    if not (pres_img and pres_img.exists()):
+        bg_video = fetch_pexels_bg(data.get("category", ""), str(ROOT / "bg.mp4"))
+
     if pres_img and pres_img.exists():
         vin = ["-loop", "1", "-framerate", "25", "-t", f"{dur:.2f}", "-i", str(pres_img)]
         vchain = (f"scale=2160:3840:force_original_aspect_ratio=increase,crop=2160:3840,"
                   f"zoompan=z='min(zoom+0.0003,1.18)':d={frames}:s=1080x1920:fps=25,"
                   f"drawbox=x=0:y=1140:w=1080:h=780:color=black@0.5:t=fill,{subs}")
+    elif bg_video:
+        vin = ["-stream_loop", "-1", "-i", bg_video]
+        vchain = (f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,"
+                  f"drawbox=x=0:y=0:w=1080:h=1920:color=black@0.28:t=fill,{subs}")
     else:
         vin = ["-f", "lavfi", "-t", f"{dur:.2f}", "-i",
                f"gradients=s=1080x1920:c0={prim}:c1=black:x0=0:y0=0:x1=1080:y1=1920:d={dur:.2f}"]
@@ -83,5 +132,6 @@ def render(brand_cfg, data, mp3, out):
             "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "25",
             "-c:a", "aac", "-b:a", "160k", "-t", f"{dur:.2f}", "-movflags", "+faststart", str(out)]
     subprocess.run(cmd, check=True, cwd=str(ROOT))
-    print(f"[render] {out} ({dur:.1f}s) 1080x1920 (libass Hindi) presenter={presenter or 'none'}")
+    src = "dadi-still" if (pres_img and pres_img.exists()) else ("pexels" if bg_video else "gradient")
+    print(f"[render] {out} ({dur:.1f}s) 1080x1920 bg={src} (libass Hindi)")
     return out

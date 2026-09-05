@@ -95,6 +95,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FB_TOKEN: ${{ secrets.FB_TOKEN }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: |
           FLAG=""
           if [ "${{ steps.pick.outputs.no_post }}" = "true" ]; then FLAG="--no-post"; fi
