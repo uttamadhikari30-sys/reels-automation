@@ -73,24 +73,28 @@ def fetch_pexels_bg(category, out):
     if not key:
         return None
     q = PEXELS_Q.get(category, category)
+    UA = "Mozilla/5.0 (reels-bot)"   # Pexels is Cloudflare-fronted: 403 without a User-Agent
     try:
         url = ("https://api.pexels.com/videos/search?orientation=portrait&size=medium&per_page=15&query="
                + urllib.parse.quote(q))
-        req = urllib.request.Request(url, headers={"Authorization": key})
+        req = urllib.request.Request(url, headers={"Authorization": key, "User-Agent": UA})
         data = json.loads(urllib.request.urlopen(req, timeout=60).read())
         vids = data.get("videos") or []
         if not vids:
-            return None
+            print("[pexels] no videos for", q); return None
         v = random.choice(vids[:10])
         files = [f for f in v.get("video_files", []) if (f.get("height") or 0) >= 1000
                  and (f.get("width") or 0) < (f.get("height") or 1)]  # portrait, decent res
         files = files or v.get("video_files", [])
         files.sort(key=lambda f: abs((f.get("height") or 0) - 1920))
         link = files[0]["link"]
-        urllib.request.urlretrieve(link, out)
+        vreq = urllib.request.Request(link, headers={"User-Agent": UA})
+        with urllib.request.urlopen(vreq, timeout=120) as r, open(out, "wb") as fo:
+            fo.write(r.read())
+        print("[pexels] downloaded bg for", q)
         return out
     except Exception as e:
-        print("[pexels] failed:", str(e)[:100])
+        print("[pexels] failed:", type(e).__name__, str(e)[:100])
         return None
 
 # ---- main render -----------------------------------------------------------
