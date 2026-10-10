@@ -52,7 +52,7 @@ Category: {category}
 - पहली line एक तेज़ hook (3 सेकंड में रोक ले)।
 - {body}
 - script में हर line नई पंक्ति पर, 4-6 छोटी lines।
-- आख़िरी line में cta_line, और cta_word "{bcfg['cta_word']}"।
+- आख़िरी line में cta_line, जिसमें cta_word "{bcfg['cta_word']}" हो और साथ में "Follow करें" ज़रूर कहो (ताकि voiceover में follow की बात आए)।
 - {items_rule}
 
 हाल की reels (इनसे अलग बात कहो):
