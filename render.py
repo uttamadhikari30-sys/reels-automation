@@ -29,8 +29,16 @@ def _wrap(script, width=22):
             out += textwrap.wrap(para, width=width) or [para]
     return "\\N".join(out)
 
-def _build_ass(brand_name, script, dur):
+def _ass_color(hexstr):
+    """'0xRRGGBB' -> ASS '&H00BBGGRR'."""
+    h = str(hexstr).lower().replace("0x", "").zfill(6)
+    return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}"
+
+def _build_ass(brand_name, script, dur, items=None, accent="0xF2B705"):
     end = _t(dur); body = _wrap(script); title = brand_name.replace("\n", " ")
+    acol = _ass_color(accent)
+    # NOTE: Spacing MUST stay 0 for every Devanagari style — any letter-spacing
+    # breaks libass cluster shaping and detaches matras (tofu on dotted circles).
     ass = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -41,13 +49,18 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Title,{FONT_FAMILY},76,&H00FFFFFF,&H00FFFFFF,&H00202020,&H64000000,-1,0,0,0,100,100,0,0,1,5,2,8,50,50,80,1
-Style: Body,{FONT_FAMILY},62,&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,1,0,1,6,3,5,90,90,0,1
+Style: Body,{FONT_FAMILY},62,&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,6,3,5,90,90,0,1
+Style: Chips,{FONT_FAMILY},50,{acol},&H00FFFFFF,&H00202020,&H82000000,-1,0,0,0,100,100,0,0,1,4,2,2,60,60,70,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:00.00,{end},Title,,0,0,0,,{title}
 Dialogue: 0,0:00:00.00,{end},Body,,0,0,0,,{body}
 """
+    chips = [str(i).strip() for i in (items or []) if str(i).strip()]
+    if chips:
+        line = "सामग्री:  " + "    •    ".join(chips[:4])
+        ass += f"Dialogue: 0,0:00:00.00,{end},Chips,,0,0,0,,{line}\n"
     (ROOT / "sub.ass").write_text(ass, encoding="utf-8")
 
 # ---- background sources ----------------------------------------------------
@@ -75,19 +88,23 @@ def fetch_pexels_bg(category, out):
     q = PEXELS_Q.get(category, category)
     UA = "Mozilla/5.0 (reels-bot)"   # Pexels is Cloudflare-fronted: 403 without a User-Agent
     try:
-        url = ("https://api.pexels.com/videos/search?orientation=portrait&size=medium&per_page=15&query="
+        url = ("https://api.pexels.com/videos/search?orientation=portrait&size=large&per_page=20&query="
                + urllib.parse.quote(q))
         req = urllib.request.Request(url, headers={"Authorization": key, "User-Agent": UA})
         data = json.loads(urllib.request.urlopen(req, timeout=60).read())
         vids = data.get("videos") or []
         if not vids:
             print("[pexels] no videos for", q); return None
-        v = random.choice(vids[:10])
-        files = [f for f in v.get("video_files", []) if (f.get("height") or 0) >= 1000
-                 and (f.get("width") or 0) < (f.get("height") or 1)]  # portrait, decent res
-        files = files or v.get("video_files", [])
-        files.sort(key=lambda f: abs((f.get("height") or 0) - 1920))
-        link = files[0]["link"]
+        # prefer clips that actually have a high-res (UHD/4K) portrait source
+        vids = [vv for vv in vids if any((f.get("height") or 0) >= 1920 for f in vv.get("video_files", []))] or vids
+        v = random.choice(vids[:12])
+        portrait = [f for f in v.get("video_files", []) if (f.get("width") or 0) < (f.get("height") or 1)]
+        pool = portrait or v.get("video_files", [])
+        # highest-resolution source (4K vertical → crisp 1080 downscale), capped ~3840 to keep file sane
+        pool.sort(key=lambda f: (f.get("height") or 0), reverse=True)
+        best = next((f for f in pool if (f.get("height") or 0) <= 3840), pool[0])
+        link = best["link"]
+        print(f"[pexels] source {best.get('width')}x{best.get('height')} for", q)
         vreq = urllib.request.Request(link, headers={"User-Agent": UA})
         with urllib.request.urlopen(vreq, timeout=120) as r, open(out, "wb") as fo:
             fo.write(r.read())
@@ -104,7 +121,8 @@ def render(brand_cfg, data, mp3, out):
     presenter = data.get("presenter")
     pres_img = ROOT / "assets" / f"{presenter}.png" if presenter else None
     music = ROOT / "assets" / "music.mp3"
-    _build_ass(brand_cfg["name"], data["script"], dur)
+    _build_ass(brand_cfg["name"], data["script"], dur,
+               data.get("items"), brand_cfg.get("color_accent", "0xF2B705"))
     subs = "subtitles=filename=sub.ass:fontsdir=assets"
 
     bg_video = None
