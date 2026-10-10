@@ -51,10 +51,12 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Title,{FONT_FAMILY},76,&H00FFFFFF,&H00FFFFFF,&H00202020,&H64000000,-1,0,0,0,100,100,0,0,1,5,2,8,50,50,80,1
 Style: Body,{FONT_FAMILY},62,&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,6,3,5,90,90,0,1
 Style: Chips,{FONT_FAMILY},50,{acol},&H00FFFFFF,&H00202020,&H82000000,-1,0,0,0,100,100,0,0,1,4,2,2,60,60,70,1
+Style: Follow,{FONT_FAMILY},46,&H0000FFFF,&H00FFFFFF,&H00151515,&H50000000,-1,0,0,0,100,100,0,0,3,10,0,8,50,50,170,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 Dialogue: 0,0:00:00.00,{end},Title,,0,0,0,,{title}
+Dialogue: 0,0:00:00.00,{end},Follow,,0,0,0,,  Follow करें +
 Dialogue: 0,0:00:00.00,{end},Body,,0,0,0,,{body}
 """
     chips = [str(i).strip() for i in (items or []) if str(i).strip()]
