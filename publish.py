@@ -16,10 +16,15 @@ CAT_TAGS = {
 }
 
 def build_caption(bcfg, data):
-    parts = [data.get("hook","").strip(), "", data.get("cta_line","").strip(), ""]
+    name = bcfg["name"]
+    # viral engagement block: follow + save/share + comment bait (drives FB/IG reach & followers)
+    follow = (f"👉 ऐसे और वीडियो के लिए {name} को Follow करें ✅\n"
+              f"❤️ Like • 🔁 Share • 🔖 Save ज़रूर करें\n"
+              f"💬 आपका क्या सोचना है? नीचे Comment में बताएं 👇")
+    parts = [data.get("hook","").strip(), "", data.get("cta_line","").strip(), "", follow, ""]
     if bcfg.get("disclaimer"):
         parts += [bcfg["disclaimer"], ""]
-    tags = CAT_TAGS.get(bcfg["kind"], "") + " " + VIRAL
+    tags = CAT_TAGS.get(bcfg["kind"], "") + " " + VIRAL + f" #{name}"
     parts.append(tags)
     return "\n".join(p for p in parts if p is not None).strip()
 
