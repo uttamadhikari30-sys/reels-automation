@@ -30,9 +30,9 @@
     "disclaimer": "यह जानकारी सामान्य ज्ञान के लिए है, डॉक्टर की सलाह का विकल्प नहीं।",
     "slots": {
       "11:00": {"category": "Gharelu Nuskhe", "voice": "hi-IN-SwaraNeural", "presenter": "dadi"},
-      "13:00": {"category": "Ayurveda", "voice": "hi-IN-MadhurNeural"},
+      "13:00": {"category": "Ayurveda", "voice": "hi-IN-MadhurNeural", "presenter": "nani"},
       "16:00": {"category": "Yoga", "voice": "hi-IN-SwaraNeural"},
-      "20:00": {"category": "Diet & Fitness", "voice": "hi-IN-MadhurNeural", "presenter": "diet"}
+      "20:00": {"category": "Diet & Fitness", "voice": "hi-IN-MadhurNeural"}
     }
   },
   "sparkmind": {
