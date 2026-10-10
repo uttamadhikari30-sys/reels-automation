@@ -34,9 +34,12 @@ def _ass_color(hexstr):
     h = str(hexstr).lower().replace("0x", "").zfill(6)
     return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}"
 
-def _build_ass(brand_name, script, dur, items=None, accent="0xF2B705"):
+def _build_ass(brand_name, script, dur, items=None, accent="0xF2B705", presenter=False):
     end = _t(dur); body = _wrap(script); title = brand_name.replace("\n", " ")
     acol = _ass_color(accent)
+    # presenter mode: dadi stays in the upper frame, remedy text drops to a darkened
+    # lower band (Alignment 2 = bottom-center). Otherwise text is vertically centered.
+    b_align, b_mv, b_size = (2, 120, 52) if presenter else (5, 0, 62)
     # NOTE: Spacing MUST stay 0 for every Devanagari style — any letter-spacing
     # breaks libass cluster shaping and detaches matras (tofu on dotted circles).
     ass = f"""[Script Info]
@@ -49,7 +52,7 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Title,{FONT_FAMILY},76,&H00FFFFFF,&H00FFFFFF,&H00202020,&H64000000,-1,0,0,0,100,100,0,0,1,5,2,8,50,50,80,1
-Style: Body,{FONT_FAMILY},62,&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,6,3,5,90,90,0,1
+Style: Body,{FONT_FAMILY},{b_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,6,3,{b_align},90,90,{b_mv},1
 Style: Chips,{FONT_FAMILY},50,{acol},&H00FFFFFF,&H00202020,&H82000000,-1,0,0,0,100,100,0,0,1,4,2,2,60,60,70,1
 Style: Follow,{FONT_FAMILY},46,&H0000FFFF,&H00FFFFFF,&H00151515,&H50000000,-1,0,0,0,100,100,0,0,3,10,0,8,50,50,170,1
 
@@ -123,19 +126,22 @@ def render(brand_cfg, data, mp3, out):
     presenter = data.get("presenter")
     pres_img = ROOT / "assets" / f"{presenter}.png" if presenter else None
     music = ROOT / "assets" / "music.mp3"
+    has_presenter = bool(pres_img and pres_img.exists())
     _build_ass(brand_cfg["name"], data["script"], dur,
-               data.get("items"), brand_cfg.get("color_accent", "0xF2B705"))
+               data.get("items"), brand_cfg.get("color_accent", "0xF2B705"), has_presenter)
     subs = "subtitles=filename=sub.ass:fontsdir=assets"
 
     bg_video = None
-    if not (pres_img and pres_img.exists()):
+    if not has_presenter:
         bg_video = fetch_pexels_bg(data.get("category", ""), str(ROOT / "bg.mp4"))
 
-    if pres_img and pres_img.exists():
+    if has_presenter:
         vin = ["-loop", "1", "-framerate", "25", "-t", f"{dur:.2f}", "-i", str(pres_img)]
-        vchain = (f"scale=2160:3840:force_original_aspect_ratio=increase,crop=2160:3840,"
-                  f"zoompan=z='min(zoom+0.0003,1.18)':d={frames}:s=1080x1920:fps=25,"
-                  f"drawbox=x=0:y=1140:w=1080:h=780:color=black@0.5:t=fill,{subs}")
+        # dadi's full face fills the TOP ~60%; the bottom is a solid brand-dark panel for
+        # the remedy text (Body is bottom-aligned). Top band keeps title/follow readable.
+        vchain = (f"scale=1080:1150:force_original_aspect_ratio=increase,crop=1080:1150:(iw-1080)/2:0,setsar=1,"
+                  f"pad=1080:1920:0:0:color=0x101510,"
+                  f"drawbox=x=0:y=0:w=1080:h=250:color=black@0.30:t=fill,{subs}")
     elif bg_video:
         vin = ["-stream_loop", "-1", "-i", bg_video]
         vchain = (f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,"
