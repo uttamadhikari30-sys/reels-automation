@@ -81,15 +81,41 @@ jobs:
           }
           if not (b and s) and cron in M:
             b, s = M[cron]
+          pres = ""
+          try:
+            import json
+            bs = json.load(open("brands.json", encoding="utf-8"))
+            pres = bs.get(b, {}).get("slots", {}).get(s, {}).get("presenter", "") or ""
+          except Exception:
+            pres = ""
           print(f"brand={b}")
           print(f"slot={s}")
           print(f"no_post={npost}")
+          print(f"presenter={pres}")
           PY
         env:
           IN_BRAND: ${{ github.event.inputs.brand }}
           IN_SLOT: ${{ github.event.inputs.slot }}
           IN_NOPOST: ${{ github.event.inputs.no_post }}
           CRON: ${{ github.event.schedule }}
+
+      # Talking presenter (free, CPU). Only for slots that have a presenter (dadi/nani).
+      # Non-fatal: if anything here fails, the reel still renders with the still presenter.
+      - name: Set up talking presenter (Wav2Lip)
+        if: steps.pick.outputs.presenter != ''
+        continue-on-error: true
+        run: |
+          pip install --quiet torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet opencv-python librosa numba scipy tqdm
+          git clone --depth 1 https://github.com/Rudrabha/Wav2Lip.git wav2lip
+          mkdir -p wav2lip/checkpoints wav2lip/face_detection/detection/sfd
+          curl -sL -o wav2lip/checkpoints/wav2lip_gan.pth \
+            https://huggingface.co/camenduru/Wav2Lip/resolve/main/checkpoints/wav2lip_gan.pth
+          curl -sL -o wav2lip/face_detection/detection/sfd/s3fd.pth \
+            https://huggingface.co/camenduru/Wav2Lip/resolve/main/face_detection/detection/sfd/s3fd.pth
+          # modern librosa needs keyword args for the mel filter
+          sed -i 's/return librosa.filters.mel(hp.sample_rate, hp.n_fft, n_mels=hp.num_mels,/return librosa.filters.mel(sr=hp.sample_rate, n_fft=hp.n_fft, n_mels=hp.num_mels,/' wav2lip/audio.py
+          echo "wav2lip set up for presenter=${{ steps.pick.outputs.presenter }}"
 
       - name: Generate + render + post
         env:
