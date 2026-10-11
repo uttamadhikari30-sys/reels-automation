@@ -34,7 +34,8 @@ def _ass_color(hexstr):
     h = str(hexstr).lower().replace("0x", "").zfill(6)
     return f"&H00{h[4:6]}{h[2:4]}{h[0:2]}"
 
-def _build_ass(brand_name, script, dur, items=None, accent="0xF2B705", presenter=False):
+def _build_ass(brand_name, script, dur, items=None, accent="0xF2B705", presenter=False, presenter_name="",
+               series="", episode=0, trust=""):
     end = _t(dur); body = _wrap(script); title = brand_name.replace("\n", " ")
     acol = _ass_color(accent)
     # presenter mode: dadi stays in the upper frame, remedy text drops to a darkened
@@ -55,6 +56,9 @@ Style: Title,{FONT_FAMILY},76,&H00FFFFFF,&H00FFFFFF,&H00202020,&H64000000,-1,0,0
 Style: Body,{FONT_FAMILY},{b_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,0,0,0,0,100,100,0,0,1,6,3,{b_align},90,90,{b_mv},1
 Style: Chips,{FONT_FAMILY},50,{acol},&H00FFFFFF,&H00202020,&H82000000,-1,0,0,0,100,100,0,0,1,4,2,2,60,60,70,1
 Style: Follow,{FONT_FAMILY},46,&H0000FFFF,&H00FFFFFF,&H00151515,&H50000000,-1,0,0,0,100,100,0,0,3,10,0,8,50,50,170,1
+Style: Name,{FONT_FAMILY},50,&H00FFFFFF,&H00FFFFFF,{acol},&H00000000,-1,0,0,0,100,100,0,0,3,14,0,5,0,0,0,1
+Style: Series,{FONT_FAMILY},40,{acol},&H00FFFFFF,&H00101010,&H64000000,-1,0,0,0,100,100,0,0,1,3,1,9,0,0,0,1
+Style: Trust,{FONT_FAMILY},36,&H0080E080,&H00FFFFFF,&H00101010,&H64000000,-1,0,0,0,100,100,0,0,1,3,1,7,0,0,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -66,6 +70,15 @@ Dialogue: 0,0:00:00.00,{end},Body,,0,0,0,,{body}
     if chips:
         line = "सामग्री:  " + "    •    ".join(chips[:4])
         ass += f"Dialogue: 0,0:00:00.00,{end},Chips,,0,0,0,,{line}\n"
+    # recurring character name badge, sat as a lower-third on the presenter's face
+    if presenter and str(presenter_name).strip():
+        ass += f"Dialogue: 0,0:00:00.00,{end},Name,,0,0,0,,{{\\pos(540,1095)}}{presenter_name.strip()}\n"
+    # series episode badge (top-right) — makes it a bingeable, followable series
+    if str(series).strip() and episode:
+        ass += f"Dialogue: 0,0:00:00.00,{end},Series,,0,0,0,,{{\\pos(1040,50)}}{str(series).strip()}  #{episode}\n"
+    # trust badge (top-left) — the credibility cue that drives saves/shares in the health niche
+    if str(trust).strip():
+        ass += f"Dialogue: 0,0:00:00.00,{end},Trust,,0,0,0,,{{\\pos(40,50)}}{str(trust).strip()}\n"
     (ROOT / "sub.ass").write_text(ass, encoding="utf-8")
 
 # ---- background sources ----------------------------------------------------
@@ -119,6 +132,16 @@ def fetch_pexels_bg(category, out):
         print("[pexels] failed:", type(e).__name__, str(e)[:100])
         return None
 
+def _pick_music():
+    """Pick a random royalty-free track for variety: any mp3 in assets/music/, else
+    assets/music.mp3. Returns a path string or None (no music). Keeps audio legal/free."""
+    mdir = ROOT / "assets" / "music"
+    tracks = list(mdir.glob("*.mp3")) if mdir.exists() else []
+    single = ROOT / "assets" / "music.mp3"
+    if single.exists():
+        tracks.append(single)
+    return str(random.choice(tracks)) if tracks else None
+
 # ---- main render -----------------------------------------------------------
 def render(brand_cfg, data, mp3, out):
     dur = _dur(mp3); frames = int(dur * 25) + 25
@@ -129,10 +152,12 @@ def render(brand_cfg, data, mp3, out):
     talking = data.get("talking_video")
     talk_path = pathlib.Path(talking) if talking else None
     use_talk = bool(talk_path and talk_path.exists())
-    music = ROOT / "assets" / "music.mp3"
+    music = _pick_music()
     has_presenter = use_talk or bool(pres_img and pres_img.exists())
     _build_ass(brand_cfg["name"], data["script"], dur,
-               data.get("items"), brand_cfg.get("color_accent", "0xF2B705"), has_presenter)
+               data.get("items"), brand_cfg.get("color_accent", "0xF2B705"), has_presenter,
+               data.get("presenter_name", ""), data.get("series", ""), data.get("episode", 0),
+               brand_cfg.get("trust_badge", ""))
     subs = "subtitles=filename=sub.ass:fontsdir=assets"
 
     bg_video = None
@@ -162,7 +187,7 @@ def render(brand_cfg, data, mp3, out):
     cmd = ["ffmpeg", "-y", *vin, "-i", mp3]
     fc = f"[0:v]{vchain}[v]"
     amap = "1:a"
-    if music.exists():
+    if music:
         cmd += ["-stream_loop", "-1", "-i", str(music)]
         fc += ";[2:a]volume=0.12[m];[1:a][m]amix=inputs=2:duration=first:dropout_transition=2[a]"
         amap = "[a]"
