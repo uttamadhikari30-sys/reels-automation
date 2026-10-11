@@ -34,7 +34,7 @@ def _prompt(bcfg, category, presenter):
         body = (f'{category} से जुड़े 3-4 आम-तौर पर 100% सही, verified, रोचक तथ्य दो। '
                 'कोई मनगढ़ंत या शक वाली बात नहीं — सिर्फ़ पक्के तथ्य।')
     elif kind == "health":
-        if presenter == "dadi":
+        if presenter in ("dadi", "nani"):
             body = ('यह घरेलू नुस्खा है — गरम, अपनेपन वाली दादी माँ जैसी बोली ("बेटा…") में लिखो। '
                     'सिर्फ़ सुरक्षित आम घरेलू उपाय, कोई दवा/खुराक नहीं।')
         else:
@@ -42,7 +42,7 @@ def _prompt(bcfg, category, presenter):
     else:
         body = f'{category} पर एक दमदार, दिल छू लेने वाली प्रेरणादायक बात हिंदी में लिखो।'
     items_rule = ('items: इस नुस्खे की 1-4 सामग्री के आम हिंदी नाम array में दो (जैसे शहद, हल्दी)।'
-                  if presenter == "dadi" else 'items: खाली array [] दो।')
+                  if presenter in ("dadi", "nani") else 'items: खाली array [] दो।')
     return f"""तुम {name} के लिए Hindi reel writer हो — tagline "{tag}"।
 Category: {category}
 
@@ -89,6 +89,25 @@ def generate(brand, bcfg, slot):
     d.setdefault("items", [])
     d.setdefault("cta_word", bcfg["cta_word"])
     d.setdefault("topic", d.get("title", category))
+    # series: running episode number across the brand (drives follows + return views)
+    try:
+        sf = STATE / f"used_{brand}.json"
+        n = len(json.loads(sf.read_text(encoding="utf-8"))) if sf.exists() else 0
+    except Exception:
+        n = 0
+    d["episode"] = n + 1
+    d["series"] = bcfg.get("series", "")
+    # recurring character: fixed name + signature open/close line (spoken + on-screen)
+    pconf = (bcfg.get("presenters") or {}).get(presenter or "", {})
+    if pconf:
+        d["presenter_name"] = pconf.get("name", "")
+        script = str(d["script"]).strip()
+        intro, outro = pconf.get("intro", "").strip(), pconf.get("outro", "").strip()
+        if intro and intro not in script:
+            script = intro + "\n" + script
+        if outro and outro not in script:
+            script = script + "\n" + outro
+        d["script"] = script
     return d
 
 if __name__ == "__main__":
