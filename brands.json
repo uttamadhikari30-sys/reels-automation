@@ -9,6 +9,9 @@
     "color_accent": "0xE86A10",
     "voice_default": "hi-IN-MadhurNeural",
     "fb_page_id": "1284084631445777",
+    "series": "रोचक तथ्य",
+    "first_comment": "क्या आपको ये पता था? 👇 नीचे कमेंट में बताइए! और ऐसे फैक्ट्स के लिए FactMitra फॉलो करें ✅",
+    "music": "ambient inspiring",
     "slots": {
       "10:00": {"category": "Space & Science Facts", "voice": "hi-IN-MadhurNeural"},
       "12:00": {"category": "India & History Facts", "voice": "hi-IN-SwaraNeural"},
@@ -27,10 +30,18 @@
     "color_accent": "0xF2B705",
     "voice_default": "hi-IN-SwaraNeural",
     "fb_page_id": "1142627388943587",
+    "series": "देसी नुस्खा",
+    "first_comment": "ये नुस्खा आपने try किया? 👇 कमेंट में बताइए! रोज़ नए देसी नुस्खे के लिए ArogyaMantra फॉलो करें ✅ (यह घरेलू जानकारी है, गंभीर समस्या में डॉक्टर से मिलें।)",
+    "music": "calm flute indian",
+    "trust_badge": "100% देसी • सुरक्षित नुस्खा",
     "disclaimer": "यह जानकारी सामान्य ज्ञान के लिए है, डॉक्टर की सलाह का विकल्प नहीं।",
+    "presenters": {
+      "dadi": {"name": "लता दादी", "intro": "बेटा, ज़रा सुन दादी की बात।", "outro": "याद रखना, दादी ने कहा है।"},
+      "nani": {"name": "शांति नानी", "intro": "आजा बेटा, नानी एक नुस्खा बताती है।", "outro": "नानी की बात गाँठ बाँध ले, बेटा।"}
+    },
     "slots": {
       "11:00": {"category": "Gharelu Nuskhe", "voice": "hi-IN-SwaraNeural", "presenter": "dadi"},
-      "13:00": {"category": "Ayurveda", "voice": "hi-IN-MadhurNeural", "presenter": "nani"},
+      "13:00": {"category": "Ayurveda", "voice": "hi-IN-SwaraNeural", "presenter": "nani"},
       "16:00": {"category": "Yoga", "voice": "hi-IN-SwaraNeural"},
       "20:00": {"category": "Diet & Fitness", "voice": "hi-IN-MadhurNeural"}
     }
@@ -45,6 +56,9 @@
     "color_accent": "0xFFC107",
     "voice_default": "hi-IN-MadhurNeural",
     "fb_page_id": "893750030487610",
+    "series": "ज़िंदगी का मंत्र",
+    "first_comment": "आपकी सोच क्या कहती है? 👇 कमेंट करें! रोज़ प्रेरणा के लिए SparkMind फॉलो करें ✅",
+    "music": "uplifting motivational",
     "slots": {
       "06:00": {"category": "God Motivation", "voice": "hi-IN-MadhurNeural"},
       "09:00": {"category": "Success Mindset", "voice": "hi-IN-SwaraNeural"},
