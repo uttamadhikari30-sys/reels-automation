@@ -21,12 +21,27 @@ def build_caption(bcfg, data):
     follow = (f"👉 ऐसे और वीडियो के लिए {name} को Follow करें ✅\n"
               f"❤️ Like • 🔁 Share • 🔖 Save ज़रूर करें\n"
               f"💬 आपका क्या सोचना है? नीचे Comment में बताएं 👇")
-    parts = [data.get("hook","").strip(), "", data.get("cta_line","").strip(), "", follow, ""]
+    # series header (e.g. "देसी नुस्खा #42") — makes the page a bingeable, followable series
+    series = str(data.get("series", "")).strip(); ep = data.get("episode", 0)
+    header = f"🔸 {series} #{ep}" if series and ep else ""
+    parts = [header, "", data.get("hook","").strip(), "", data.get("cta_line","").strip(), "", follow, ""]
     if bcfg.get("disclaimer"):
         parts += [bcfg["disclaimer"], ""]
+    parts += ["🎵 Music: Kevin MacLeod (incompetech.com) • CC BY 4.0", ""]
     tags = CAT_TAGS.get(bcfg["kind"], "") + " " + VIRAL + f" #{name}"
     parts.append(tags)
     return "\n".join(p for p in parts if p is not None).strip()
+
+def post_comment(obj_id, token, message):
+    """Auto first-comment (engagement boosts reach). Non-fatal."""
+    if not (obj_id and message):
+        return
+    try:
+        requests.post(f"{GV}/{obj_id}/comments",
+                      data={"message": message, "access_token": token}, timeout=60)
+        print("[comment] posted on", obj_id)
+    except Exception as e:
+        print("[comment] failed:", str(e)[:120])
 
 def get_page_token(page_id, token):
     """Exchange the system-user token for the PAGE access token (needed to post reels)."""
@@ -121,4 +136,12 @@ def publish_all(brand, bcfg, path, data):
             print("[ig] published", out["instagram"]["resp"])
         except Exception as e:
             out["instagram"] = {"ok": False, "error": str(e)[:200]}; print("[ig] FAILED", e)
+    # auto first-comment (engagement bait) on whatever posted successfully
+    fc = str(bcfg.get("first_comment", "")).strip()
+    if fc:
+        if out.get("facebook", {}).get("ok"):
+            post_comment(out["facebook"].get("video_id"), token, fc)
+        ig = (out.get("instagram", {}).get("resp") or {})
+        if out.get("instagram", {}).get("ok") and ig.get("id"):
+            post_comment(ig.get("id"), token, fc)
     return out
