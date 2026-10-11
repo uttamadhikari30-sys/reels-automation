@@ -125,8 +125,12 @@ def render(brand_cfg, data, mp3, out):
     prim = brand_cfg["color_primary"]
     presenter = data.get("presenter")
     pres_img = ROOT / "assets" / f"{presenter}.png" if presenter else None
+    # a lip-synced talking clip (Wav2Lip) takes priority over the still presenter photo
+    talking = data.get("talking_video")
+    talk_path = pathlib.Path(talking) if talking else None
+    use_talk = bool(talk_path and talk_path.exists())
     music = ROOT / "assets" / "music.mp3"
-    has_presenter = bool(pres_img and pres_img.exists())
+    has_presenter = use_talk or bool(pres_img and pres_img.exists())
     _build_ass(brand_cfg["name"], data["script"], dur,
                data.get("items"), brand_cfg.get("color_accent", "0xF2B705"), has_presenter)
     subs = "subtitles=filename=sub.ass:fontsdir=assets"
@@ -136,7 +140,11 @@ def render(brand_cfg, data, mp3, out):
         bg_video = fetch_pexels_bg(data.get("category", ""), str(ROOT / "bg.mp4"))
 
     if has_presenter:
-        vin = ["-loop", "1", "-framerate", "25", "-t", f"{dur:.2f}", "-i", str(pres_img)]
+        # talking (lip-synced) video loops to cover the audio; still photo is a looped frame
+        if use_talk:
+            vin = ["-stream_loop", "-1", "-i", str(talk_path)]
+        else:
+            vin = ["-loop", "1", "-framerate", "25", "-t", f"{dur:.2f}", "-i", str(pres_img)]
         # dadi's full face fills the TOP ~60%; the bottom is a solid brand-dark panel for
         # the remedy text (Body is bottom-aligned). Top band keeps title/follow readable.
         vchain = (f"scale=1080:1150:force_original_aspect_ratio=increase,crop=1080:1150:(iw-1080)/2:0,setsar=1,"
