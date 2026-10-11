@@ -13,6 +13,28 @@ def voiceover(text, voice, out):
                     "--text", text, "--write-media", str(out)], check=True)
     return out
 
+def lipsync(presenter, mp3):
+    """Lip-sync the presenter photo to the voiceover via Wav2Lip (free, CPU).
+    Returns the talking-video path, or None to fall back to the still presenter.
+    The Wav2Lip repo+checkpoints are set up by the workflow only for presenter slots."""
+    face = ROOT / "assets" / f"{presenter}.png"
+    w2l = ROOT / "wav2lip"
+    ckpt = w2l / "checkpoints" / "wav2lip_gan.pth"
+    if not (face.exists() and (w2l / "inference.py").exists() and ckpt.exists()):
+        return None
+    out = ROOT / "talking.mp4"
+    try:
+        subprocess.run([sys.executable, "inference.py",
+                        "--checkpoint_path", "checkpoints/wav2lip_gan.pth",
+                        "--face", str(face), "--audio", str(mp3),
+                        "--outfile", str(out), "--static", "True",
+                        "--nosmooth", "--pads", "0", "15", "0", "0"],
+                       check=True, cwd=str(w2l))
+        return str(out) if out.exists() else None
+    except Exception as e:
+        print("[lipsync] failed, using still presenter:", str(e)[:150])
+        return None
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--brand", required=True)
@@ -30,6 +52,15 @@ def main():
     mp3 = ROOT / "reel.mp3"
     voiceover(data["script"], data["voice"], mp3)
     print("[voice]", data["voice"])
+
+    presenter = data.get("presenter")
+    if presenter:
+        tv = lipsync(presenter, mp3)
+        if tv:
+            data["talking_video"] = tv
+            print("[lipsync] talking presenter ready ->", tv)
+        else:
+            print("[lipsync] not set up, using still presenter")
 
     mp4 = ROOT / "reel.mp4"
     render.render(bcfg, data, str(mp3), str(mp4))
