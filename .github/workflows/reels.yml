@@ -59,6 +59,12 @@ jobs:
           sudo mkdir -p /usr/share/fonts/truetype/mukta
           sudo cp assets/NotoSansDevanagari.ttf /usr/share/fonts/truetype/mukta/Mukta-Regular.ttf
           sudo fc-cache -f >/dev/null 2>&1 || true
+          # royalty-free background music (Kevin MacLeod, CC BY 4.0) — render picks one at random
+          mkdir -p assets/music
+          MB="https://incompetech.com/music/royalty-free/mp3-royaltyfree"
+          for n in "Peaceful%20Desolation" "Meditation%20Impromptu%2001" "Deliberate%20Thought" "Inspired"; do
+            curl -sL -o "assets/music/$(echo $n | sed 's/%20/_/g').mp3" "$MB/$n.mp3" || true
+          done
           pip install -r requirements.txt
 
       - name: Pick brand + slot
