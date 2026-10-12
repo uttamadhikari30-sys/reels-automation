@@ -7,10 +7,23 @@ import gen, render, publish
 ROOT = pathlib.Path(__file__).resolve().parent
 
 def voiceover(text, voice, out):
-    # edge-tts: free, natural Indian Hindi voices
-    # NOTE: use --rate=-4% (equals form) — "--rate -4%" makes argparse treat -4% as a flag
-    subprocess.run(["edge-tts", "--voice", voice, "--rate=-4%",
-                    "--text", text, "--write-media", str(out)], check=True)
+    """Primary: edge-tts (natural Indian Hindi, male/female). Fallback: gTTS (Google)
+    when Microsoft Edge TTS is down (it periodically 403s). One always produces audio.
+    NOTE: use --rate=-4% (equals form) — "--rate -4%" makes argparse treat -4% as a flag."""
+    try:
+        subprocess.run(["edge-tts", "--voice", voice, "--rate=-4%",
+                        "--text", text, "--write-media", str(out)],
+                       check=True, capture_output=True, timeout=120)
+        p = pathlib.Path(out)
+        if p.exists() and p.stat().st_size > 2000:
+            print("[voice] edge-tts ok")
+            return out
+        raise RuntimeError("edge-tts produced no/empty audio")
+    except Exception as e:
+        print("[voice] edge-tts failed -> gTTS fallback:", str(e)[:120])
+    from gtts import gTTS
+    gTTS(text=text, lang="hi", slow=False).save(str(out))
+    print("[voice] gTTS fallback ok")
     return out
 
 def lipsync(presenter, mp3):
